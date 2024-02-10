@@ -3,13 +3,21 @@ import pygame
 import random
 from perlin_noise import PerlinNoise
 
-noise = PerlinNoise(octaves=2, seed=random.randint(0, 1000))
-xpix, ypix = 30, 18
-pic = [[noise([i/xpix, j/ypix]) for j in range(xpix)] for i in range(ypix)]
+def rebuild():
+    global world
+    noise = PerlinNoise(octaves=2, seed=random.randint(0, 1000))
+    xpix, ypix = 30, 18
+    pic = [[noise([i/xpix, j/ypix]) for j in range(xpix)] for i in range(ypix)]
+    with open("File.csv", 'w', newline='') as File:
+        csv.writer(File).writerows(pic)
+        File.close()
 
-with open("File.csv", 'w', newline='') as File:
-    csv.writer(File).writerows(pic)
-    File.close()
+camerax = 0
+cameray = 0
+
+world = []
+
+rebuild()
 
 with open("File.csv", 'r') as File:
     world = list(csv.reader(File))
@@ -30,20 +38,36 @@ font = pygame.font.SysFont("Arial" , 12 , bold = True)
 
 running = True
 
+
 def fps_counter():
     fps = str(int(clock.get_fps()))
     fps_t = font.render(fps , 1, pygame.Color("RED"))
     screen.blit(fps_t,(0,0))
+
+def playerinput():
+    global world, camerax, cameray
+    keys=pygame.key.get_pressed()
+    mousekey=pygame.mouse.get_pressed()
+    mousepos=pygame.mouse.get_pos()
+    camerax += keys[pygame.K_LEFT]-keys[pygame.K_RIGHT]
+    cameray += keys[pygame.K_UP]-keys[pygame.K_DOWN]
+    if keys[pygame.K_r]: 
+        rebuild()
+        with open("File.csv", 'r') as File: 
+            world = list(csv.reader(File)) 
+            File.close()
+
 
 class World:
     def __init__(self):
         self.tilesize=25
     
     def show(self):
-        global world
+        global world, camerax, cameray
+        screen.fill((0, 0, 0))
         for x in range(len(world)):
             for z in range(len(world[0])):
-                self.drawrect=pygame.Rect(0 + self.tilesize*z, 0 + self.tilesize*x, self.tilesize, self.tilesize)
+                self.drawrect=pygame.Rect(0 + self.tilesize*z + camerax, 0 + self.tilesize*x + cameray, self.tilesize, self.tilesize)
                 if world[x][z] < str(-.5): color = (36, 50, 255)
                 elif world[x][z] > str(.5): color = (140, 140, 140)
                 elif world[x][z] > str(-.5) and world[x][z] < str(.5): color = (11, 158, 0)
@@ -58,8 +82,9 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     
+    playerinput()
     w.show()
-
+    
     fps_counter()
     pygame.display.update()
 
