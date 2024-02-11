@@ -4,24 +4,42 @@ import random
 from perlin_noise import PerlinNoise
 
 def rebuild():
-    global world
+    global terrain, xpix, ypix
     noise = PerlinNoise(octaves=2, seed=random.randint(0, 1000))
-    xpix, ypix = 30, 18
     pic = [[noise([i/xpix, j/ypix]) for j in range(xpix)] for i in range(ypix)]
-    with open("File.csv", 'w', newline='') as File:
-        csv.writer(File).writerows(pic)
+    converted_matrix = [[1 if num < -.10 
+                         else 2 if num > -.10 and num < .25
+                         else 3 if num > .25
+                         else 0 for num in sublist] for sublist in pic]
+    matrix = [[0 for _ in range(xpix)] for _ in range(ypix)]
+    with open("Terrain.csv", 'w', newline='') as File:
+        csv.writer(File).writerows(converted_matrix)
         File.close()
+    with open("Visible.csv", 'w', newline='') as File:
+        csv.writer(File).writerows(matrix)
+        File.close()
+
+def reader():
+    global terrain, visible
+    with open("Terrain.csv", 'r') as File:
+        terrain = list(csv.reader(File))
+        File.close()
+
+    with open("Visible.csv", 'r', newline='') as File:
+        visible = list(csv.reader(File))
+        File.close()
+
 
 camerax = 0
 cameray = 0
 
-world = []
+terrain = []
+visible = []
+
+xpix, ypix = 30, 18
 
 rebuild()
-
-with open("File.csv", 'r') as File:
-    world = list(csv.reader(File))
-    File.close()
+reader()
 
 with open("config.yaml", "r") as yamlfile:
     settings = yaml.safe_load(yamlfile)
@@ -45,7 +63,7 @@ def fps_counter():
     screen.blit(fps_t,(0,0))
 
 def playerinput():
-    global world, camerax, cameray
+    global terrain, camerax, cameray, event
     keys=pygame.key.get_pressed()
     mousekey=pygame.mouse.get_pressed()
     mousepos=pygame.mouse.get_pos()
@@ -53,25 +71,28 @@ def playerinput():
     cameray += keys[pygame.K_UP]-keys[pygame.K_DOWN]
     if keys[pygame.K_r]: 
         rebuild()
-        with open("File.csv", 'r') as File: 
-            world = list(csv.reader(File)) 
-            File.close()
-
+        reader()
+    if event.type == pygame.MOUSEBUTTONDOWN:
+        visible[int((mousepos[1]-(mousepos[1]%w.tilesize))/w.tilesize)][int((mousepos[0]-(mousepos[0]%w.tilesize))/w.tilesize)] = 1
+        
 
 class World:
     def __init__(self):
         self.tilesize=25
     
     def show(self):
-        global world, camerax, cameray
+        global terrain, visible, camerax, cameray, xpix, ypix
+        color = (0, 0, 0)
         screen.fill((0, 0, 0))
-        for x in range(len(world)):
-            for z in range(len(world[0])):
+        for x in range(ypix):
+            for z in range(xpix):
                 self.drawrect=pygame.Rect(0 + self.tilesize*z + camerax, 0 + self.tilesize*x + cameray, self.tilesize, self.tilesize)
-                if world[x][z] < str(-.5): color = (36, 50, 255)
-                elif world[x][z] > str(.5): color = (140, 140, 140)
-                elif world[x][z] > str(-.5) and world[x][z] < str(.5): color = (11, 158, 0)
-
+                if int(visible[x][z]) == 0:
+                    color = (232, 232, 232)
+                else:
+                    if int(terrain[x][z]) == 1: color = (36, 50, 255)
+                    elif int(terrain[x][z]) == 2: color = (11, 158, 0)
+                    elif int(terrain[x][z]) == 3: color = (140, 140, 140)
                 pygame.draw.rect(screen, color, self.drawrect)
 
 
